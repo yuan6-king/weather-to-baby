@@ -1,0 +1,106 @@
+name: 早安天气+每日情话 7:00
+on:
+  schedule:
+    - cron: "00 23 * * *"  # 北京时间 7:00
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run weather & love message
+        env:
+          SCT_KEY: "SCT337194TImXupE6jd4ZD9FwCcu4UqbOr"
+          CITY: "河津市"
+        run: |
+          import os
+          import requests
+
+          sct_key = os.environ["SCT_KEY"]
+          city = os.environ["CITY"]
+
+          # ========== 1. 获取天气 ==========
+          try:
+              r = requests.get(
+                  f"https://api.qq.com/weather/now?city={city}",
+                  timeout=10
+              )
+              data = r.json()
+              weather = data["weather"][0]["now"]
+              temp = weather["temp"]
+              text = weather["text"]
+          except:
+              text = "晴"
+              temp = "20"
+
+          # ========== 2. 自动提示语 ==========
+          tip = ""
+          if "雨" in text:
+              tip = "今天有雨，出门记得带伞☔️，别淋湿啦～"
+          elif int(temp) < 15:
+              tip = "天气有点凉，要多穿件衣服，不许着凉哦～"
+          elif int(temp) > 28:
+              tip = "今天有点热，注意防晒，乖乖多喝水☀️"
+          else:
+              tip = "温度刚刚好，今天也要开开心心呀～"
+
+          # ========== 3. 每日一句情话（随机） ==========
+          love_words = [
+              "遇见你之后，我再也没有羡慕过任何人。",
+              "别人再好与我无关，你再不好我都喜欢。",
+              "想把所有温柔都存起来，慢慢都给你。",
+              "世界那么大，而我真正想落脚的地方是你身旁。",
+              "你不用多好，我喜欢就好；我没有很好，你不嫌弃就好。",
+              "一想到能和你共度余生，我就对余生充满期待。",
+              "你是我疲惫生活里，唯一的英雄梦想。",
+              "山野万里，你是我藏在微风里的喜欢。",
+              "别人眼中的世界，比不上我眼中的你。",
+              "想和你今年、明年、年年，一直在一起。",
+              "你是年少的欢喜，也是余生的甜蜜。",
+              "世界在下沉，我在热恋你。",
+              "我攒了好多年的温柔和可爱，现在都只想给你。",
+              "遇见你，是我这辈子最幸运的事。",
+              "想牵着你的手，从心动到古稀。",
+              "你是我所有温柔的来源和归属。",
+              "人间无趣，但有先生/宝贝你。",
+              "万物皆有裂痕，那是光照进来的地方，而你是我的光。",
+              "我不想做你的路人，我想做你余生故事里的人。",
+              "好好生活，慢慢爱你，不早不晚，刚好是你。"
+          ]
+
+          import random
+          random.seed()
+          love = random.choice(love_words)
+
+          # ========== 4. 最终消息 ==========
+          msg = f"""
+          宝贝早安☀️ 新的一天也要开开心心呀～
+
+          今日【{city}】天气：{text}
+          当前温度：{temp}℃
+
+          💡 温馨提示：
+          {tip}
+
+          ✨ 今日情话：
+          {love}
+
+          爱你哟❤️
+          """
+
+          # ========== 5. 推送到微信 ==========
+          requests.post(
+              f"https://sctapi.ftqq.com/{sct_key}.send",
+              data={
+                  "title": "宝贝早安☀️ 今日天气+情话送达",
+                  "desp": msg.strip()
+              }
+          )
